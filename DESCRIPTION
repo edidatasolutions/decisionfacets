@@ -1,16 +1,19 @@
 Package: decisionfacets
 Title: Decision Accuracy and Consistency for Rater-Mediated Exams
 Version: 0.1.0
-Authors@R: person("Daniel", "Edi", email = "danieledi2026@gmail.com", role = c("aut", "cre"))
+Authors@R: person("Daniel", "Edi", email = "danieledi2026@gmail.com", role = c("aut", "cre", "cph"))
 Description: Answers "would this candidate have passed with a different set
     of raters?" for rater-mediated exams such as oral examinations,
     objective structured clinical examinations and essay scoring. Builds on
-    the many-facet Rasch rating scale model to compute counterfactual pass
-    probabilities under the observed, an average-severity and a random rater
-    panel, under an explicit decision rule (raw total, fair average or
-    measure), and splits expected misclassification into measurement error
-    and rater assignment. Models can be fitted with 'TAM' or a built-in joint
-    maximum likelihood estimator.
+    the many-facet extension of the rating scale model (Andrich, 1978,
+    <doi:10.1007/BF02293814>) to compute counterfactual pass probabilities
+    under the observed, an average-severity and a random rater panel, under
+    an explicit decision rule (raw total, fair average or measure), and
+    splits expected misclassification into measurement error and rater
+    assignment, extending item response theory classification accuracy
+    (Lee, 2010, <doi:10.1111/j.1745-3984.2009.00096.x>) to rater effects.
+    Models can be fitted with 'TAM' or a built-in joint maximum likelihood
+    estimator.
 License: MIT + file LICENSE
 URL: https://github.com/edidatasolutions/decisionfacets, https://edidatasolutions.github.io/decisionfacets/
 BugReports: https://github.com/edidatasolutions/decisionfacets/issues

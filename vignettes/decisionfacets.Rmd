@@ -1,0 +1,90 @@
+---
+title: "Would this candidate have passed with different raters?"
+output: markdown::html_format
+vignette: >
+  %\VignetteIndexEntry{Would this candidate have passed with different raters?}
+  %\VignetteEngine{knitr::knitr}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+Boards that run oral exams, OSCEs or essay-scored certifications must defend
+individual pass/fail decisions. Rater severity is well studied; what it *did*
+to decisions usually is not. decisionfacets answers that question directly.
+
+## A simulated administration
+
+Every candidate is scored on four tasks by two raters drawn from a pool of
+twelve whose severities differ. Because the data are simulated, the true
+abilities and severities are known.
+
+```{r}
+library(decisionfacets)
+sim <- df_simulate(n_persons = 400, n_items = 4, n_raters = 12,
+                   raters_per_person = 2, severity_sd = 0.6, seed = 2026)
+head(sim$data)
+round(sim$par$lambda, 2)   # true rater severities (positive = harsher)
+```
+
+## Fit the many-facet Rasch model
+
+`df_fit()` uses 'TAM' when it is installed and a built-in joint maximum
+likelihood estimator otherwise. We use the built-in one here so the vignette
+has no dependencies.
+
+```{r}
+fit <- df_fit(sim$data, engine = "jmle")
+df_rater_effects(fit)
+```
+
+## The decision rule is the point
+
+The same substantive standard (an average rating of 2 per cell) can be applied
+to raw totals or to severity-adjusted measures. Rater severity reaches the
+decision only in the first case.
+
+```{r}
+raw <- df_cut(2 * 4 * 2, "raw_total")
+fa  <- df_cut(2, "fair_average")
+```
+
+## Counterfactual pass probabilities
+
+For each candidate, `df_counterfactual()` gives the probability of passing a
+re-rating by the observed panel, by an average-severity panel and by a random
+panel from the pool. `advantage` is how far the assigned panel pushed the
+candidate toward the outcome they received.
+
+```{r}
+cf_raw <- df_counterfactual(fit, raw)
+cf_raw
+summary(cf_raw)
+summary(df_counterfactual(fit, fa))
+```
+
+Under raw totals, a sizable share of candidates are rater-dependent; under the
+fair average, essentially none are.
+
+## Where do wrong decisions come from?
+
+```{r}
+df_attribute(cf_raw)
+```
+
+The decomposition separates error that no rater could remove (measurement)
+from error added by the particular raters assigned, and from the expected cost
+of random assignment.
+
+## Checking against the truth
+
+With the true parameters the same analysis gives the known answer, so the
+estimates can be compared with it:
+
+```{r}
+truth <- df_counterfactual(sim, raw)
+cor(truth$advantage, cf_raw$advantage)
+table(truth = truth$rater_dependent, estimated = cf_raw$rater_dependent)
+```

@@ -1,7 +1,8 @@
 Package: decisionfacets
 Title: Decision Accuracy and Consistency for Rater-Mediated Exams
 Version: 0.1.0
-Authors@R: person("Daniel", "Edi", email = "danieledi2026@gmail.com", role = c("aut", "cre", "cph"))
+Authors@R: person("Daniel", "Edi", email = "danieledi2026@gmail.com", role = c("aut", "cre", "cph"),
+    comment = c(ORCID = "0000-0001-5475-819X"))
 Description: Answers "would this candidate have passed with a different set
     of raters?" for rater-mediated exams such as oral examinations,
     objective structured clinical examinations and essay scoring. Builds on

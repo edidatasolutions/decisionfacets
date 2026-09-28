@@ -2,7 +2,7 @@
 
 ## Authors
 
-- **Daniel Edi**. Author, maintainer.
+- **Daniel Edi**. Author, maintainer, copyright holder.
 
 ## Citation
 

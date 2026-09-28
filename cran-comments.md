@@ -13,11 +13,10 @@ This is the first submission of decisionfacets.
 0 errors | 0 warnings | 1 note
 
 * This is a new release.
+* "Andrich" (flagged as possibly misspelled) is the author of the cited
+  reference (Andrich, 1978).
 
 ## Notes for the reviewer
 
-* 'TAM' is in Suggests. It is used only when `df_fit(engine = "tam")` is requested
-  or TAM is installed; otherwise a built-in estimator is used. The example that
-  uses TAM is wrapped in `\donttest{}` and guarded by `requireNamespace()`.
-* Longer known-truth validation scripts are in `inst/validation/` and are not
-  run during checks.
+* 'TAM' is in Suggests. It is used only when `df_fit(engine = "tam")` is requested or TAM is installed; otherwise a built-in estimator is used. The example that uses TAM is wrapped in `\donttest{}` and guarded by `requireNamespace()`.
+* Longer known-truth validation scripts are in `inst/validation/` and are not run during checks.

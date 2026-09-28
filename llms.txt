@@ -66,19 +66,22 @@ splits expected misclassifications into measurement error (present even
 with average raters), rater assignment (observed minus average), and the
 expected cost of the random assignment design.
 
-## Validation (known truth, `inst/validation/mvp_recovery.R`)
+## Validation (known truth, 100 replications)
 
 1,000 candidates, 4 items, 12 raters (severity SD 0.6), 2 raters per
-candidate, cut = mean rating of 2:
+candidate, cut = mean rating of 2. Means over 100 replications:
 
-- Raw totals: 147 truly rater-dependent candidates. TAM flags 140,
-  recovering 75% of true flags (79% of TAM’s flags are real). An oracle
-  with the true parameters recovers 76%, so the remaining gap is
-  measurement error from 8 ratings per candidate, not estimation error.
-- Expected misclassifications per 1,000: 156 under raw totals (114
-  measurement, 42 rater assignment) versus 116 under the measure rule
-  (assignment about 2). TAM estimates: 157 / 119 / 39. Realized errors
-  in the simulation: 147.
+- Raw totals: 176 truly rater-dependent candidates per 1,000. TAM flags
+  169, recovering 71% of true flags (75% of TAM’s flags are real). An
+  oracle with the true parameters also recovers 71%, so the remaining
+  gap is measurement error from 8 ratings per candidate, not estimation
+  error.
+- Expected misclassifications per 1,000: 160 under raw totals (116
+  measurement, 44 rater assignment) versus 117 under the measure rule
+  (assignment about 1). TAM estimates: 160 / 116 / 44. Realized errors
+  in the simulation: 160.
+- Under measure-based and fair-average rules, no candidate is flagged as
+  rater-dependent.
 
 ## Status
 
@@ -93,7 +96,7 @@ candidate, cut = mean rating of 2:
 Current design limits: every panel rater scores every item for a
 candidate, panel sizes are equal, no missing ratings, severity only (no
 halo/drift terms). With few ratings per person, JMLE stretches the logit
-scale (~16% in the tests); prefer TAM.
+scale (~15% in validation); prefer TAM.
 
 ## Getting help and contributing
 

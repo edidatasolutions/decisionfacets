@@ -164,9 +164,14 @@ summary.df_counterfactual <- function(object, ...) {
 #' @export
 print.df_counterfactual <- function(x, n = 10, ...) {
   cut <- attr(x, "cut")
+  # Subsetting (e.g. head(), x[rows, ]) drops the attributes; print the rows plainly.
+  if (is.null(cut)) {
+    print(as.data.frame(unclass(x)), ...)
+    return(invisible(x))
+  }
   cat("<df_counterfactual> rule =", cut$decision_rule, "| cut =", cut$value,
       "| theta =", attr(x, "theta_mode"), "|", attr(x, "n_panels"),
-      if (attr(x, "enumerated")) "panels (all)" else "panels (sampled)", "\n")
+      if (isTRUE(attr(x, "enumerated"))) "panels (all)" else "panels (sampled)", "\n")
   cat(sum(x$rater_dependent), "of", nrow(x), "candidates flagged as rater-dependent\n\n")
   top <- x[order(-x$advantage), ][seq_len(min(n, nrow(x))), ]
   print(format(as.data.frame(top), digits = 3), row.names = FALSE)

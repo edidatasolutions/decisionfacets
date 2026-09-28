@@ -98,4 +98,7 @@ tr3 <- s_true$expected_count[1:3]; es3 <- s_est$expected_count[1:3]
 stopifnot(all(abs(es3 - tr3) < pmax(0.25 * abs(tr3), 5)))
 stopifnot(inherits(try(df_attribute(truth, "halo"), silent = TRUE), "try-error"))
 
+# Printing a subset (attributes dropped) must not fail.
+invisible(utils::capture.output(print(utils::head(truth, 3)), print(truth[1:2, ])))
+
 cat("All core tests passed.\n")

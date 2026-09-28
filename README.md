@@ -86,3 +86,9 @@ Current design limits: every panel rater scores every item for a candidate,
 panel sizes are equal, no missing ratings, severity only (no halo/drift terms).
 With few ratings per person, JMLE stretches the logit scale (~16% in the tests);
 prefer TAM.
+
+## Getting help and contributing
+
+Questions and bug reports: https://github.com/edidatasolutions/decisionfacets/issues. See
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) for how to report problems, get
+help, or contribute code.

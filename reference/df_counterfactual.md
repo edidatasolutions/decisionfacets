@@ -101,7 +101,7 @@ cf                 # most rater-dependent candidates first
 #>   P0075 R02|R06    12      12          TRUE     0.6241     0.191    0.257
 #>   P0057 R02|R05    13      12          TRUE     0.7339     0.363    0.396
 #>   P0170 R03|R04     7      12         FALSE     0.0583     0.355    0.388
-#>   P0005 R03|R06    10      12         FALSE     0.2889     0.650    0.613
+#>   P0073 R03|R06    10      12         FALSE     0.2889     0.650    0.613
 #>   p_min p_max  delta advantage rater_dependent          direction
 #>  0.0237 0.745  0.464     0.464            TRUE lenient_panel_pass
 #>  0.0931 0.904  0.441     0.441            TRUE lenient_panel_pass

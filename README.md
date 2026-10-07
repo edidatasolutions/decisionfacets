@@ -1,5 +1,7 @@
 # decisionfacets
 
+[![CRAN status](https://www.r-pkg.org/badges/version/decisionfacets)](https://CRAN.R-project.org/package=decisionfacets)
+
 **Would this candidate have passed with a different set of raters?**
 
 Decision accuracy and consistency for rater-mediated exams (oral exams, OSCEs,
@@ -21,7 +23,7 @@ df_attribute(cf)                             # measurement error vs rater assign
 
 ## Installation
 
-From CRAN (once released):
+From CRAN:
 
 ```r
 install.packages("decisionfacets")

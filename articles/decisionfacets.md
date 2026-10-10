@@ -162,3 +162,103 @@ table(truth = truth$rater_dependent, estimated = cf_raw$rater_dependent)
 #>   FALSE   290   20
 #>   TRUE     22   68
 ```
+
+## Oral examinations: one examiner per case, scores 0-100
+
+Many oral certification exams do not use panels. Each candidate works
+through a series of cases, and each case is scored by a different
+examiner on a 0-100 scale. decisionfacets handles this design and these
+scores directly.
+
+`oral_exam` is a synthetic example: 300 candidates each take 12 cases,
+and each case is scored by one of 8 examiners qualified for it (48
+examiners in all), never the same examiner twice for one candidate.
+
+``` r
+
+head(oral_exam)
+#>   candidate   case examiner score
+#> 1     C0001 Case01      E09    58
+#> 2     C0001 Case02      E04    56
+#> 3     C0001 Case03      E44    56
+#> 4     C0001 Case04      E29    68
+#> 5     C0001 Case05      E45    58
+#> 6     C0001 Case06      E03    67
+d <- df_data(oral_exam, person = "candidate", item = "case",
+             rater = "examiner", scale = "continuous")
+```
+
+Continuous scores are fitted with a linear many-facet model,
+`score = ability - case difficulty - examiner severity + error`.
+Measures, difficulties and severities are all in score points, so a
+severity of 3 means that examiner scores about 3 points lower than an
+average examiner would.
+
+``` r
+
+ofit <- df_fit(d)
+round(ofit$par$sigma, 1)                # residual SD (score points)
+#> [1] 7.9
+head(df_rater_effects(ofit))
+#>   rater   severity
+#> 1   E01 -2.0756067
+#> 2   E02 -3.2289985
+#> 3   E03 -3.8700384
+#> 4   E04  1.0323901
+#> 5   E05  2.9004364
+#> 6   E06 -0.8947828
+range(round(ofit$par$lambda, 1))        # most lenient and harshest examiners
+#> [1] -11.9   9.9
+```
+
+The natural standard is a mean score, for example 70. The counterfactual
+reassigns examiners case by case: each draw gives every case an examiner
+qualified for it.
+
+``` r
+
+cut70 <- df_cut(70, "raw_mean")
+cf_oral <- df_counterfactual(ofit, cut70, max_panels = 500, seed = 1)
+summary(cf_oral)
+#>   decision_rule cut   n pass_rate_observed expected_pass_rate_random_panel
+#> 1      raw_mean  70 300               0.65                       0.6319092
+#>   mean_abs_delta n_rater_dependent n_lenient_panel_pass n_harsh_panel_fail
+#> 1     0.04796453                13                    7                  6
+#>   n_panel_sensitive
+#> 1                93
+df_attribute(cf_oral)
+#> <df_attribution> rule = raw_mean | cut = 70 | standard at theta = 70 | n = 300 
+#> 
+#>  component                                        expected_count per_1000
+#>  expected misclassifications (observed panels)    31.0           103.2   
+#>    measurement error (average panel)              27.4            91.4   
+#>    rater assignment, net (observed - average)      3.5            11.8   
+#>      gross harm (panels that added error)          5.6            18.8   
+#>      gross benefit (panels that removed error)    -2.1            -7.0   
+#>    of which false passes                          14.1            46.9   
+#>    of which false fails                           16.9            56.3   
+#>  random-assignment design cost (random - average)  3.1            10.2
+```
+
+With twelve different examiners per candidate, severity largely averages
+out, so examiner assignment usually accounts for a smaller share of
+wrong decisions than with two-rater panels. Scoring with
+severity-adjusted measures removes it altogether:
+
+``` r
+
+summary(df_counterfactual(ofit, df_cut(70, "measure"), max_panels = 500, seed = 1))
+#>   decision_rule cut   n pass_rate_observed expected_pass_rate_random_panel
+#> 1       measure  70 300               0.64                       0.6324932
+#>   mean_abs_delta n_rater_dependent n_lenient_panel_pass n_harsh_panel_fail
+#> 1   1.491153e-16                 0                    0                  0
+#>   n_panel_sensitive
+#> 1                 0
+```
+
+[`df_fit()`](https://edidatasolutions.github.io/decisionfacets/reference/df_fit.md)
+also checks that the rating network is connected. If some examiners
+never share candidates or cases with the rest, their severities cannot
+be compared, and
+[`df_fit()`](https://edidatasolutions.github.io/decisionfacets/reference/df_fit.md)
+stops with an explanation instead of returning misleading estimates.

@@ -207,6 +207,89 @@ the estimates can be compared with it:</p>
 <span><span class="co">#&gt;   FALSE   290   20</span></span>
 <span><span class="co">#&gt;   TRUE     22   68</span></span></code></pre></div>
 </div>
+<div class="section level2">
+<h2 id="oral-examinations-one-examiner-per-case-scores-0-100">Oral examinations: one examiner per case, scores 0-100<a class="anchor" aria-label="anchor" href="#oral-examinations-one-examiner-per-case-scores-0-100"></a>
+</h2>
+<p>Many oral certification exams do not use panels. Each candidate works
+through a series of cases, and each case is scored by a different
+examiner on a 0-100 scale. decisionfacets handles this design and these
+scores directly.</p>
+<p><code>oral_exam</code> is a synthetic example: 300 candidates each
+take 12 cases, and each case is scored by one of 8 examiners qualified
+for it (48 examiners in all), never the same examiner twice for one
+candidate.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">oral_exam</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   candidate   case examiner score</span></span>
+<span><span class="co">#&gt; 1     C0001 Case01      E09    58</span></span>
+<span><span class="co">#&gt; 2     C0001 Case02      E04    56</span></span>
+<span><span class="co">#&gt; 3     C0001 Case03      E44    56</span></span>
+<span><span class="co">#&gt; 4     C0001 Case04      E29    68</span></span>
+<span><span class="co">#&gt; 5     C0001 Case05      E45    58</span></span>
+<span><span class="co">#&gt; 6     C0001 Case06      E03    67</span></span>
+<span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/df_data.html">df_data</a></span><span class="op">(</span><span class="va">oral_exam</span>, person <span class="op">=</span> <span class="st">"candidate"</span>, item <span class="op">=</span> <span class="st">"case"</span>,</span>
+<span>             rater <span class="op">=</span> <span class="st">"examiner"</span>, scale <span class="op">=</span> <span class="st">"continuous"</span><span class="op">)</span></span></code></pre></div>
+<p>Continuous scores are fitted with a linear many-facet model,
+<code>score = ability - case difficulty - examiner severity + error</code>.
+Measures, difficulties and severities are all in score points, so a
+severity of 3 means that examiner scores about 3 points lower than an
+average examiner would.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ofit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/df_fit.html">df_fit</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">ofit</span><span class="op">$</span><span class="va">par</span><span class="op">$</span><span class="va">sigma</span>, <span class="fl">1</span><span class="op">)</span>                <span class="co"># residual SD (score points)</span></span>
+<span><span class="co">#&gt; [1] 7.9</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu"><a href="../reference/df_rater_effects.html">df_rater_effects</a></span><span class="op">(</span><span class="va">ofit</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   rater   severity</span></span>
+<span><span class="co">#&gt; 1   E01 -2.0756067</span></span>
+<span><span class="co">#&gt; 2   E02 -3.2289985</span></span>
+<span><span class="co">#&gt; 3   E03 -3.8700384</span></span>
+<span><span class="co">#&gt; 4   E04  1.0323901</span></span>
+<span><span class="co">#&gt; 5   E05  2.9004364</span></span>
+<span><span class="co">#&gt; 6   E06 -0.8947828</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/range.html" class="external-link">range</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">ofit</span><span class="op">$</span><span class="va">par</span><span class="op">$</span><span class="va">lambda</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span>        <span class="co"># most lenient and harshest examiners</span></span>
+<span><span class="co">#&gt; [1] -11.9   9.9</span></span></code></pre></div>
+<p>The natural standard is a mean score, for example 70. The
+counterfactual reassigns examiners case by case: each draw gives every
+case an examiner qualified for it.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cut70</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/df_cut.html">df_cut</a></span><span class="op">(</span><span class="fl">70</span>, <span class="st">"raw_mean"</span><span class="op">)</span></span>
+<span><span class="va">cf_oral</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/df_counterfactual.html">df_counterfactual</a></span><span class="op">(</span><span class="va">ofit</span>, <span class="va">cut70</span>, max_panels <span class="op">=</span> <span class="fl">500</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">cf_oral</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   decision_rule cut   n pass_rate_observed expected_pass_rate_random_panel</span></span>
+<span><span class="co">#&gt; 1      raw_mean  70 300               0.65                       0.6319092</span></span>
+<span><span class="co">#&gt;   mean_abs_delta n_rater_dependent n_lenient_panel_pass n_harsh_panel_fail</span></span>
+<span><span class="co">#&gt; 1     0.04796453                13                    7                  6</span></span>
+<span><span class="co">#&gt;   n_panel_sensitive</span></span>
+<span><span class="co">#&gt; 1                93</span></span>
+<span><span class="fu"><a href="../reference/df_attribute.html">df_attribute</a></span><span class="op">(</span><span class="va">cf_oral</span><span class="op">)</span></span>
+<span><span class="co">#&gt; &lt;df_attribution&gt; rule = raw_mean | cut = 70 | standard at theta = 70 | n = 300 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;  component                                        expected_count per_1000</span></span>
+<span><span class="co">#&gt;  expected misclassifications (observed panels)    31.0           103.2   </span></span>
+<span><span class="co">#&gt;    measurement error (average panel)              27.4            91.4   </span></span>
+<span><span class="co">#&gt;    rater assignment, net (observed - average)      3.5            11.8   </span></span>
+<span><span class="co">#&gt;      gross harm (panels that added error)          5.6            18.8   </span></span>
+<span><span class="co">#&gt;      gross benefit (panels that removed error)    -2.1            -7.0   </span></span>
+<span><span class="co">#&gt;    of which false passes                          14.1            46.9   </span></span>
+<span><span class="co">#&gt;    of which false fails                           16.9            56.3   </span></span>
+<span><span class="co">#&gt;  random-assignment design cost (random - average)  3.1            10.2</span></span></code></pre></div>
+<p>With twelve different examiners per candidate, severity largely
+averages out, so examiner assignment usually accounts for a smaller
+share of wrong decisions than with two-rater panels. Scoring with
+severity-adjusted measures removes it altogether:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="../reference/df_counterfactual.html">df_counterfactual</a></span><span class="op">(</span><span class="va">ofit</span>, <span class="fu"><a href="../reference/df_cut.html">df_cut</a></span><span class="op">(</span><span class="fl">70</span>, <span class="st">"measure"</span><span class="op">)</span>, max_panels <span class="op">=</span> <span class="fl">500</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   decision_rule cut   n pass_rate_observed expected_pass_rate_random_panel</span></span>
+<span><span class="co">#&gt; 1       measure  70 300               0.64                       0.6324932</span></span>
+<span><span class="co">#&gt;   mean_abs_delta n_rater_dependent n_lenient_panel_pass n_harsh_panel_fail</span></span>
+<span><span class="co">#&gt; 1   1.491153e-16                 0                    0                  0</span></span>
+<span><span class="co">#&gt;   n_panel_sensitive</span></span>
+<span><span class="co">#&gt; 1                 0</span></span></code></pre></div>
+<p><code><a href="../reference/df_fit.html">df_fit()</a></code> also checks that the rating network is
+connected. If some examiners never share candidates or cases with the
+rest, their severities cannot be compared, and <code><a href="../reference/df_fit.html">df_fit()</a></code>
+stops with an explanation instead of returning misleading estimates.</p>
+</div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>

@@ -4,16 +4,30 @@
 \alias{df_data}
 \title{Standardize rater-mediated score data}
 \usage{
-df_data(x, person = "person", item = "item", rater = "rater", score = "score")
+df_data(
+  x,
+  person = "person",
+  item = "item",
+  rater = "rater",
+  score = "score",
+  scale = c("auto", "ordinal", "continuous")
+)
 }
 \arguments{
 \item{x}{A data frame in long format, one row per person x item x rater score.}
 
 \item{person, item, rater, score}{Column names in `x`.}
+
+\item{scale}{`"ordinal"` for rating categories (integers, analyzed with the
+many-facet Rasch rating scale model), `"continuous"` for scores such as
+0-100 (analyzed with the linear many-facet model), or `"auto"`: continuous
+when scores are not all integers or take more than 20 distinct values.}
 }
 \value{
-A `df_data` data frame with character ids and 0-based integer scores;
-  attribute `K` is the highest category.
+A `df_data` data frame with character ids and scores. Ordinal scores
+  are 0-based integers and attribute `K` is the highest category;
+  continuous scores are kept as they are. Attribute `scale` records the
+  choice.
 }
 \description{
 Standardize rater-mediated score data
@@ -22,4 +36,10 @@ Standardize rater-mediated score data
 raw <- data.frame(cand = c("A", "A", "B", "B"), task = "T1",
                   examiner = c("R1", "R2", "R1", "R2"), rating = c(3, 4, 2, 2))
 df_data(raw, person = "cand", item = "task", rater = "examiner", score = "rating")
+
+# Scores on a 0-100 scale
+pct <- data.frame(cand = c("A", "B", "C"), case = "C1", examiner = "E1",
+                  score = c(72.5, 64, 88))
+df_data(pct, person = "cand", item = "case", rater = "examiner",
+        scale = "continuous")
 }

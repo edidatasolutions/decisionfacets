@@ -15,34 +15,68 @@ df_simulate(
   item_sd = 0.5,
   severity_sd = 0.5,
   tau = NULL,
+  design = c("crossed", "per_item"),
+  raters_per_item = NULL,
+  scale = c("ordinal", "continuous"),
+  continuous = list(),
   seed = NULL
 )
 }
 \arguments{
 \item{n_persons, n_items, n_raters}{Facet sizes.}
 
-\item{raters_per_person}{Panel size per candidate.}
+\item{raters_per_person}{Panel size per candidate (crossed design).}
 
-\item{n_cat}{Number of score categories (scores 0..n_cat-1).}
+\item{n_cat}{Number of score categories (ordinal scores 0..n_cat-1).}
 
-\item{theta_mean, theta_sd}{Candidate ability distribution.}
+\item{theta_mean, theta_sd}{Candidate ability distribution (ordinal: logits).}
 
-\item{item_sd, severity_sd}{SDs of item difficulty and rater severity (both centered).}
+\item{item_sd, severity_sd}{SDs of item difficulty and rater severity (both
+centered). For continuous scores they are on the score scale.}
 
 \item{tau}{Category thresholds; defaults to equally spaced on [-1.5, 1.5].}
+
+\item{design}{`"crossed"` or `"per_item"`.}
+
+\item{raters_per_item}{Qualified examiners per item in the per-item design
+(default: all raters).}
+
+\item{scale}{`"ordinal"` or `"continuous"`.}
+
+\item{continuous}{Settings for continuous scores: `center` (mean score),
+`theta_sd`, `item_sd`, `severity_sd` and `sigma` (residual SD), all on
+the score scale, `bounds` (scores are truncated to this range) and
+`round` (round to whole points). They replace `theta_mean`, `theta_sd`,
+`item_sd` and `severity_sd` when `scale = "continuous"`.}
 
 \item{seed}{Optional RNG seed.}
 }
 \value{
 A `df_sim` object: `$data` (a `df_data`) and `$par`, the true
-  parameters (`theta`, `delta`, `lambda`, `tau`, all named).
+  parameters (`theta`, `delta`, `lambda`, and `tau` or `sigma` and
+  `model = "linear"`, all named).
 }
 \description{
-Each candidate is scored on every item by a panel of `raters_per_person`
-raters drawn at random from the pool.
+Two scoring designs are available. In the `"crossed"` design each candidate
+is scored on every item by a panel of `raters_per_person` raters drawn at
+random from the pool. In the `"per_item"` design each item (for example an
+oral-examination case) has its own set of `raters_per_item` qualified
+examiners, and each of a candidate's items is scored by one examiner drawn
+from that item's set, with no examiner scoring the same candidate twice
+when it can be avoided.
+}
+\details{
+Scores are ordinal (many-facet Rasch rating scale model) or continuous
+(linear many-facet model on a score scale such as 0-100).
 }
 \examples{
 sim <- df_simulate(n_persons = 100, n_items = 3, n_raters = 6, seed = 1)
 head(sim$data)
 sim$par$lambda   # true rater severities
+
+# Oral examination: 8 cases, one examiner per case, scores 0-100
+oral <- df_simulate(n_persons = 100, n_items = 8, n_raters = 24,
+                    design = "per_item", raters_per_item = 6,
+                    scale = "continuous", seed = 1)
+head(oral$data)
 }

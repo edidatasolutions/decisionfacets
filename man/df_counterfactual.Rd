@@ -11,7 +11,7 @@ df_counterfactual(
   theta = c("auto", "posterior", "point"),
   max_panels = 2000,
   flag_delta = 0.2,
-  grid = seq(-6, 6, by = 0.1),
+  grid = NULL,
   prior_mean = NULL,
   prior_sd = NULL,
   seed = NULL
@@ -28,11 +28,12 @@ grid posterior given the candidate's observed ratings (the default for a
 `object$par$theta` (the default for a `df_sim`, giving the known truth).}
 
 \item{max_panels}{Enumerate all rater panels when there are at most this many;
-otherwise sample this many panels.}
+otherwise sample this many panels or assignments.}
 
 \item{flag_delta}{Minimum rater advantage (see below) for a flag.}
 
-\item{grid}{Theta grid for the posterior.}
+\item{grid}{Theta grid for the posterior. Defaults to `seq(-6, 6, by = 0.1)`
+for ordinal scores and a grid spanning six prior SDs for continuous scores.}
 
 \item{prior_mean, prior_sd}{Normal prior for the posterior; default to the
 fitted population prior when the fit supplies one (`par$theta_prior`),
@@ -44,8 +45,8 @@ otherwise the mean and SD of the person estimates.}
 A `df_counterfactual` data frame, one row per candidate:
   `person`, `panel`, `total`, `raw_cut`, `pass_observed` (actual decision),
   `p_observed`, `p_average`, `p_random`, `p_min`, `p_max` (worst and best
-  panel in the pool), `delta` (= p_observed - p_random),
-  `advantage`, `direction` and `rater_dependent`.
+  panel in the pool or among sampled assignments), `delta`
+  (= p_observed - p_random), `advantage`, `direction` and `rater_dependent`.
 
   `advantage` is how much the assigned panel pushed the candidate toward
   the outcome they actually received: `delta` for a pass, `-delta` for a
@@ -58,11 +59,24 @@ A `df_counterfactual` data frame, one row per candidate:
 }
 \description{
 For each candidate, computes the probability of passing a re-rating under
-(a) the observed panel, (b) a panel of average-severity raters, and (c) a
-panel drawn at random from the rater pool, all under the same decision rule.
-Probabilities are exact (recursive convolution of the model's category
-probabilities); the only approximation is sampling panels when the pool is
-too large to enumerate.
+(a) the observed raters, (b) raters of average severity, and (c) raters
+drawn at random from the pool, all under the same decision rule.
+}
+\details{
+Two scoring designs are supported:
+\describe{
+  \item{crossed}{Every rater on a candidate's panel scores every item. The
+    random panel is a random set of raters from the pool, enumerated when
+    feasible.}
+  \item{assignment}{Any other pattern, typically one examiner per case. The
+    random assignment draws, for each of the candidate's items, an examiner
+    at random from those who scored that item, without reusing an
+    examiner for the same candidate when an alternative exists.
+    Assignments are sampled.}
+}
+Probabilities are exact given an assignment (recursive convolution for
+ordinal scores, the normal distribution for continuous scores); the only
+approximation is sampling assignments when they cannot be enumerated.
 }
 \examples{
 sim <- df_simulate(n_persons = 200, n_items = 3, n_raters = 6, seed = 1)
@@ -72,4 +86,10 @@ cf                 # most rater-dependent candidates first
 summary(cf)
 # Known truth: the same analysis with the true parameters
 summary(df_counterfactual(sim, df_cut(12, "raw_total")))
+
+# One examiner per case, continuous 0-100 scores
+oral <- df_simulate(n_persons = 150, n_items = 6, n_raters = 18,
+                    design = "per_item", raters_per_item = 6,
+                    scale = "continuous", seed = 2)
+summary(df_counterfactual(oral, df_cut(70, "raw_mean"), seed = 1))
 }

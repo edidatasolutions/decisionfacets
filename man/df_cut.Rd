@@ -4,12 +4,16 @@
 \alias{df_cut}
 \title{Define a pass/fail cut under an explicit decision rule}
 \usage{
-df_cut(value, decision_rule = c("raw_total", "fair_average", "measure"))
+df_cut(
+  value,
+  decision_rule = c("raw_total", "raw_mean", "fair_average", "measure")
+)
 }
 \arguments{
 \item{value}{The cut score on the scale implied by `decision_rule`.}
 
-\item{decision_rule}{One of `"raw_total"`, `"fair_average"`, `"measure"`.}
+\item{decision_rule}{One of `"raw_total"`, `"raw_mean"`, `"fair_average"`,
+`"measure"`.}
 }
 \value{
 A `df_cut` object (a list with `value` and `decision_rule`).
@@ -19,17 +23,23 @@ The decision rule determines how rater severity can reach the decision:
 \describe{
   \item{`raw_total`}{Pass if the summed observed ratings reach `value`.
     Severity passes straight through to the decision.}
-  \item{`measure`}{Pass if the severity-adjusted Rasch measure (logits)
-    reaches `value`. Severity is modeled out; only its effect on
-    measurement precision remains.}
+  \item{`raw_mean`}{Pass if the mean observed rating reaches `value` (for
+    example 70 on a 0-100 scale). Equivalent to `raw_total` with a cut of
+    `value` times the number of ratings, which is convenient when
+    candidates have different numbers of ratings.}
+  \item{`measure`}{Pass if the severity-adjusted measure reaches `value`
+    (logits for ordinal scores; score points for continuous scores).
+    Severity is modeled out; only its effect on measurement precision
+    remains.}
   \item{`fair_average`}{Pass if the FACETS-style fair average (expected
     mean rating per cell for an average rater) reaches `value`. It is
     monotone in the measure, so it behaves like `measure` with a
-    transformed cut.}
+    transformed cut. For continuous scores it equals the measure.}
 }
 }
 \examples{
 df_cut(16, "raw_total")        # pass if the summed ratings reach 16
+df_cut(70, "raw_mean")         # pass if the mean rating reaches 70
 df_cut(2, "fair_average")      # pass if the fair average reaches 2
-df_cut(0.25, "measure")        # pass if the Rasch measure reaches 0.25 logits
+df_cut(0.25, "measure")        # pass if the measure reaches 0.25
 }

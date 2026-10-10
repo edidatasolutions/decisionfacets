@@ -1,23 +1,34 @@
-#' Fit a many-facet Rasch rating scale model
+#' Fit a many-facet measurement model
+#'
+#' Ordinal scores are fitted with the many-facet Rasch rating scale model;
+#' continuous scores (see [df_data()]) with the linear many-facet model
+#' `score = theta - delta - lambda + error`, `error ~ N(0, sigma^2)`.
 #'
 #' @param data A `df_data` object.
-#' @param engine `"tam"` (marginal ML via `TAM::tam.mml.mfr`, the default when
-#'   TAM is installed) or `"jmle"` (built-in joint maximum likelihood, the
-#'   FACETS approach).
+#' @param engine For ordinal scores: `"tam"` (marginal ML via
+#'   `TAM::tam.mml.mfr`, the default when TAM is installed) or `"jmle"`
+#'   (built-in joint maximum likelihood, the FACETS approach). For
+#'   continuous scores: `"linear"` (least squares; the only option).
 #' @param max_iter,tol Convergence controls; `tol = NULL` uses each engine's
-#'   default (1e-4 for TAM, 1e-6 for JMLE).
+#'   default (1e-4 for TAM, 1e-6 for JMLE and linear).
 #' @return A `df_fit` object: `$data`, `$par` (named `theta`, `delta`,
-#'   `lambda`, `tau`; for TAM also `theta_prior`, the fitted population
+#'   `lambda`, and `tau` for ordinal or `sigma` and `model = "linear"` for
+#'   continuous scores; for TAM and linear also `theta_prior`, the population
 #'   mean and SD), `$engine`, `$converged`, `$iterations`, and for TAM the
 #'   fitted `$model`.
-#' @details Both engines report parameters in the same parameterization:
-#'   item difficulties and rater severities centered at 0, thresholds centered
-#'   at 0, and person measures on the resulting logit scale. For TAM,
-#'   `par$theta` holds EAPs.
+#' @details All engines report item difficulties and rater severities
+#'   centered at 0. Ordinal person measures are on the logit scale (EAPs for
+#'   TAM); continuous person measures are on the score scale, so a measure is
+#'   the expected rating from an average-severity rater on an average item.
+#'
+#'   The rating network must be connected: every rater must be linked to every
+#'   other through shared candidates and items, or severities are not
+#'   comparable. `df_fit()` stops when it is not.
 #'
 #'   JMLE person measures are clamped to [-7, 7], so extreme scores get a
 #'   finite but arbitrary measure. JMLE's known small-sample spread inflation
-#'   is not corrected.
+#'   is not corrected. The linear model ignores the bounds of the score scale
+#'   (e.g. 0 and 100), which matters only when many ratings sit at a bound.
 #' @examples
 #' sim <- df_simulate(n_persons = 200, n_items = 3, n_raters = 6, seed = 1)
 #' fit <- df_fit(sim$data, engine = "jmle")
@@ -30,15 +41,80 @@
 #' }
 #' @export
 df_fit <- function(data, engine = NULL, max_iter = 1000, tol = NULL) {
-  if (is.null(engine))
-    engine <- if (requireNamespace("TAM", quietly = TRUE)) "tam" else "jmle"
-  engine <- match.arg(engine, c("tam", "jmle"))
-  if (is.null(tol)) tol <- if (engine == "tam") 1e-4 else 1e-6
   if (!inherits(data, "df_data")) data <- df_data(data)
+  continuous <- identical(attr(data, "scale"), "continuous")
+  if (is.null(engine))
+    engine <- if (continuous) "linear"
+              else if (requireNamespace("TAM", quietly = TRUE)) "tam" else "jmle"
+  engine <- match.arg(engine, c("tam", "jmle", "linear"))
+  if (continuous && engine != "linear")
+    stop("Continuous scores are fitted with engine = 'linear'.")
+  if (!continuous && engine == "linear")
+    stop("engine = 'linear' is for continuous scores; use df_data(..., scale = 'continuous').")
+  check_connected(data)
+  if (is.null(tol)) tol <- if (engine == "tam") 1e-4 else 1e-6
   fit <- switch(engine,
     tam = tam_mfrm(data, attr(data, "K"), max_iter, tol),
-    jmle = jmle_mfrm(data, attr(data, "K"), max_iter, tol))
+    jmle = jmle_mfrm(data, attr(data, "K"), max_iter, tol),
+    linear = linear_mfm(data, max(max_iter, 5000), tol))
   structure(c(list(data = data, engine = engine), fit), class = "df_fit")
+}
+
+# Stop unless persons, items and raters form one connected network: otherwise
+# rater severities in different components are not on a common scale.
+check_connected <- function(d) {
+  nodes <- c(paste0("p:", d$person), paste0("i:", d$item), paste0("r:", d$rater))
+  id <- match(nodes, unique(nodes))
+  n <- length(d$person)
+  parent <- seq_len(max(id))
+  find <- function(x) { while (parent[x] != x) { parent[x] <<- parent[parent[x]]; x <- parent[x] }; x }
+  for (k in seq_len(n)) {
+    a <- find(id[k]); b <- find(id[n + k]); c <- find(id[2 * n + k])
+    parent[b] <- a; parent[find(c)] <- a
+  }
+  roots <- unique(vapply(seq_along(parent), find, numeric(1)))
+  if (length(roots) > 1)
+    stop("The rating network is disconnected (", length(roots), " separate components): ",
+         "rater severities cannot be placed on a common scale. Add linking ratings.")
+  invisible(TRUE)
+}
+
+# Linear many-facet model by alternating least squares (person effects fixed,
+# item and rater effects centered at 0). sigma uses the residual degrees of
+# freedom; the population prior's SD removes the estimation-error variance
+# from the spread of the person measures.
+linear_mfm <- function(d, max_iter, tol) {
+  pf <- factor(d$person); itf <- factor(d$item); rf <- factor(d$rater)
+  pi <- as.integer(pf); ii <- as.integer(itf); ri <- as.integer(rf)
+  x <- d$score
+  np <- tabulate(pi); ni <- tabulate(ii); nr <- tabulate(ri)
+  de <- numeric(nlevels(itf)); la <- numeric(nlevels(rf))
+  th <- drop(rowsum(x, pi)) / np
+  converged <- FALSE
+  for (it in seq_len(max_iter)) {
+    old <- c(th, de, la)
+    th <- drop(rowsum(x + de[ii] + la[ri], pi)) / np
+    de <- drop(rowsum(th[pi] - la[ri] - x, ii)) / ni; de <- de - mean(de)
+    la <- drop(rowsum(th[pi] - de[ii] - x, ri)) / nr; la <- la - mean(la)
+    if (max(abs(c(th, de, la) - old)) < tol) { converged <- TRUE; break }
+  }
+  if (!converged) warning("Linear model did not converge in ", max_iter, " iterations.")
+  res <- x - (th[pi] - de[ii] - la[ri])
+  dfree <- length(x) - (nlevels(pf) + nlevels(itf) - 1 + nlevels(rf) - 1)
+  if (dfree <= 0) stop("Too few ratings to estimate the residual SD.")
+  sigma <- sqrt(sum(res^2) / dfree)
+  true_var <- stats::var(th) - mean(sigma^2 / np)
+  list(
+    par = list(
+      theta = stats::setNames(th, levels(pf)),
+      delta = stats::setNames(de, levels(itf)),
+      lambda = stats::setNames(la, levels(rf)),
+      sigma = sigma,
+      model = "linear",
+      theta_prior = c(mean = mean(th), sd = sqrt(max(true_var, 0.05 * stats::var(th))))
+    ),
+    converged = converged, iterations = it
+  )
 }
 
 # TAM adapter. Parameters are read from the category intercepts (AXsi) of each

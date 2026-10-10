@@ -101,4 +101,45 @@ stopifnot(inherits(try(df_attribute(truth, "halo"), silent = TRUE), "try-error")
 # Printing a subset (attributes dropped) must not fail.
 invisible(utils::capture.output(print(utils::head(truth, 3)), print(truth[1:2, ])))
 
+# 6. One examiner per case, continuous 0-100 scores ------------------------
+oral <- df_simulate(n_persons = 300, n_items = 8, n_raters = 32, design = "per_item",
+                    raters_per_item = 8, scale = "continuous", seed = 7)
+od <- oral$data
+stopifnot(identical(attr(od, "scale"), "continuous"),
+          all(od$score >= 0 & od$score <= 100),
+          all(tapply(od$rater, od$person, function(r) !anyDuplicated(r))))  # no repeat examiners
+ofit <- df_fit(od)
+stopifnot(ofit$engine == "linear", ofit$converged,
+          abs(ofit$par$sigma - 8) < 1,
+          cor(ofit$par$lambda, oral$par$lambda[names(ofit$par$lambda)]) > 0.9)
+ocut <- df_cut(70, "raw_mean")
+otruth <- df_counterfactual(oral, ocut, max_panels = 300, seed = 1)
+stopifnot(attr(otruth, "design") == "assignment",
+          all(otruth$raw_cut == 70 * 8))
+# raw_mean and the equivalent raw_total give identical results.
+stopifnot(all.equal(otruth$p_random,
+                    df_counterfactual(oral, df_cut(560, "raw_total"), max_panels = 300, seed = 1)$p_random))
+# With known parameters, severity-adjusted scoring makes the examiners irrelevant.
+om <- df_counterfactual(oral, df_cut(70, "measure"), max_panels = 300, seed = 1)
+stopifnot(max(abs(om$p_observed - om$p_random)) < 1e-10, sum(om$rater_dependent) == 0)
+# Expected misclassifications match realized ones.
+oatt <- df_attribute(otruth)
+oe <- oatt$err_observed
+stopifnot(abs(sum(oatt$realized_error) - sum(oe)) < 4 * sqrt(sum(oe * (1 - oe))))
+# Estimated analysis runs end to end.
+invisible(df_attribute(df_counterfactual(ofit, ocut, max_panels = 200, seed = 1)))
+
+# 7. One examiner per case, ordinal scores ----------------------------------
+ord <- df_simulate(n_persons = 300, n_items = 6, n_raters = 18, design = "per_item",
+                   raters_per_item = 6, severity_sd = 0.6, seed = 8)
+ofj <- df_fit(ord$data, engine = "jmle")
+stopifnot(cor(ofj$par$lambda, ord$par$lambda[names(ofj$par$lambda)]) > 0.85)
+invisible(df_attribute(df_counterfactual(ofj, df_cut(12, "raw_total"), max_panels = 200, seed = 1)))
+
+# 8. Disconnected rating networks are refused ------------------------------
+bad <- df_data(data.frame(person = c("a", "a", "b", "b"), item = c("i1", "i2", "i3", "i4"),
+                          rater = c("r1", "r1", "r2", "r2"), score = c(60, 70, 80, 75)),
+               scale = "continuous")
+stopifnot(inherits(try(df_fit(bad), silent = TRUE), "try-error"))
+
 cat("All core tests passed.\n")

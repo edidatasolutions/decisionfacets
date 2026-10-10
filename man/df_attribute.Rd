@@ -24,9 +24,9 @@ A `df_attribution` data frame, one row per candidate: `person`,
 \description{
 A decision is a misclassification when it disagrees with the candidate's
 standing against the intended standard, `theta >= theta_standard`: the
-measure-scale cut for measure-based rules, or for `raw_total` the ability at
-which an average panel's expected total equals the raw cut. For each
-candidate the probability of misclassification is computed under three
+measure-scale cut for measure-based rules, or for raw rules the ability at
+which an average-severity panel's expected total equals the raw cut. For
+each candidate the probability of misclassification is computed under three
 panels, and the expected number of wrong decisions is split into:
 \describe{
   \item{measurement}{Error expected with an average-severity panel. It comes

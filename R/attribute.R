@@ -2,9 +2,9 @@
 #'
 #' A decision is a misclassification when it disagrees with the candidate's
 #' standing against the intended standard, `theta >= theta_standard`: the
-#' measure-scale cut for measure-based rules, or for `raw_total` the ability at
-#' which an average panel's expected total equals the raw cut. For each
-#' candidate the probability of misclassification is computed under three
+#' measure-scale cut for measure-based rules, or for raw rules the ability at
+#' which an average-severity panel's expected total equals the raw cut. For
+#' each candidate the probability of misclassification is computed under three
 #' panels, and the expected number of wrong decisions is split into:
 #' \describe{
 #'   \item{measurement}{Error expected with an average-severity panel. It comes
@@ -45,30 +45,48 @@ df_attribute <- function(counterfactual, components = "severity") {
     stop("Not estimable from the current model: ", paste(unsupported, collapse = ", "),
          ". Only 'severity' is supported until halo/drift terms are modeled.")
   it <- attr(counterfactual, "internals")
-  if (is.null(it)) stop("Recompute the counterfactual with this version of decisionfacets.")
+  if (is.null(it) || is.null(it$groups))
+    stop("Recompute the counterfactual with this version of decisionfacets.")
 
-  below <- it$pts < it$theta_standard
-  wrong <- function(C) C * below + (1 - C) * !below   # rows of C are pts
-  to_person <- if (is.null(it$W)) function(C) C else function(C) it$W %*% C
   n <- nrow(counterfactual)
-  pick_obs <- function(C) to_person(C)[cbind(seq_len(n), it$obs_index)]
-
+  person_vals <- function(C, idx) {
+    C <- as.matrix(C)
+    if (is.null(it$W)) C[idx, , drop = FALSE] else it$W[idx, , drop = FALSE] %*% C
+  }
+  p_true <- err_obs <- err_avg <- err_rand <- f_pass <- f_fail <- below_pt <- numeric(n)
+  theta_std <- numeric(n)
+  for (g in it$groups) {
+    m <- g$members
+    below <- it$pts < g$theta_standard
+    wrong <- function(C) C * below + (1 - C) * !below   # rows of C are pts
+    pick_obs <- function(C) person_vals(C, m)[cbind(seq_along(m), it$obs_index[m])]
+    p_true[m] <- drop(person_vals(as.numeric(!below), m))
+    err_obs[m] <- pick_obs(wrong(it$C_obs))
+    err_avg[m] <- drop(person_vals(wrong(g$c_avg), m))
+    err_rand[m] <- rowMeans(person_vals(wrong(g$C), m))
+    f_pass[m] <- pick_obs(it$C_obs * below)
+    f_fail[m] <- pick_obs((1 - it$C_obs) * !below)
+    theta_std[m] <- g$theta_standard
+    if (it$known_truth) below_pt[m] <- below[m]
+  }
   out <- data.frame(
     person = counterfactual$person,
     panel = counterfactual$panel,
     pass_observed = counterfactual$pass_observed,
-    p_true_pass = drop(to_person(matrix(as.numeric(!below)))),
-    err_observed = pick_obs(wrong(it$C_obs)),
-    err_average = drop(to_person(matrix(wrong(it$c_avg)))),
-    err_random = rowMeans(to_person(wrong(it$C))),
+    p_true_pass = p_true,
+    err_observed = err_obs,
+    err_average = err_avg,
+    err_random = err_rand,
     stringsAsFactors = FALSE
   )
   out$assignment <- out$err_observed - out$err_average
-  out$false_pass <- pick_obs(it$C_obs * below)
-  out$false_fail <- pick_obs((1 - it$C_obs) * !below)
-  if (it$known_truth) out$realized_error <- out$pass_observed == below
+  out$false_pass <- f_pass
+  out$false_fail <- f_fail
+  if (it$known_truth) out$realized_error <- out$pass_observed == as.logical(below_pt)
+  ts <- unique(theta_std)
   structure(out, class = c("df_attribution", "data.frame"),
-            cut = attr(counterfactual, "cut"), theta_standard = it$theta_standard,
+            cut = attr(counterfactual, "cut"),
+            theta_standard = if (length(ts) == 1) ts else theta_std,
             known_truth = it$known_truth)
 }
 
@@ -99,8 +117,10 @@ summary.df_attribution <- function(object, ...) {
 #' @export
 print.df_attribution <- function(x, ...) {
   cut <- attr(x, "cut")
+  ts <- attr(x, "theta_standard")
   cat("<df_attribution> rule =", cut$decision_rule, "| cut =", cut$value,
-      "| standard at theta =", round(attr(x, "theta_standard"), 3),
+      "| standard at theta =",
+      if (length(ts) == 1) round(ts, 3) else "varies by item set",
       "| n =", nrow(x), "\n\n")
   s <- summary(x)
   s$expected_count <- round(s$expected_count, 1)

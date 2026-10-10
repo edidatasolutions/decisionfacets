@@ -2,11 +2,23 @@
 #' different raters?
 #'
 #' For each candidate, computes the probability of passing a re-rating under
-#' (a) the observed panel, (b) a panel of average-severity raters, and (c) a
-#' panel drawn at random from the rater pool, all under the same decision rule.
-#' Probabilities are exact (recursive convolution of the model's category
-#' probabilities); the only approximation is sampling panels when the pool is
-#' too large to enumerate.
+#' (a) the observed raters, (b) raters of average severity, and (c) raters
+#' drawn at random from the pool, all under the same decision rule.
+#'
+#' Two scoring designs are supported:
+#' \describe{
+#'   \item{crossed}{Every rater on a candidate's panel scores every item. The
+#'     random panel is a random set of raters from the pool, enumerated when
+#'     feasible.}
+#'   \item{assignment}{Any other pattern, typically one examiner per case. The
+#'     random assignment draws, for each of the candidate's items, an examiner
+#'     at random from those who scored that item, without reusing an
+#'     examiner for the same candidate when an alternative exists.
+#'     Assignments are sampled.}
+#' }
+#' Probabilities are exact given an assignment (recursive convolution for
+#' ordinal scores, the normal distribution for continuous scores); the only
+#' approximation is sampling assignments when they cannot be enumerated.
 #'
 #' @param object A `df_fit` (estimated parameters) or `df_sim` (true parameters).
 #' @param cut A `df_cut`.
@@ -15,9 +27,10 @@
 #'   `df_fit`, so probabilities include measurement error); `"point"` plugs in
 #'   `object$par$theta` (the default for a `df_sim`, giving the known truth).
 #' @param max_panels Enumerate all rater panels when there are at most this many;
-#'   otherwise sample this many panels.
+#'   otherwise sample this many panels or assignments.
 #' @param flag_delta Minimum rater advantage (see below) for a flag.
-#' @param grid Theta grid for the posterior.
+#' @param grid Theta grid for the posterior. Defaults to `seq(-6, 6, by = 0.1)`
+#'   for ordinal scores and a grid spanning six prior SDs for continuous scores.
 #' @param prior_mean,prior_sd Normal prior for the posterior; default to the
 #'   fitted population prior when the fit supplies one (`par$theta_prior`),
 #'   otherwise the mean and SD of the person estimates.
@@ -25,8 +38,8 @@
 #' @return A `df_counterfactual` data frame, one row per candidate:
 #'   `person`, `panel`, `total`, `raw_cut`, `pass_observed` (actual decision),
 #'   `p_observed`, `p_average`, `p_random`, `p_min`, `p_max` (worst and best
-#'   panel in the pool), `delta` (= p_observed - p_random),
-#'   `advantage`, `direction` and `rater_dependent`.
+#'   panel in the pool or among sampled assignments), `delta`
+#'   (= p_observed - p_random), `advantage`, `direction` and `rater_dependent`.
 #'
 #'   `advantage` is how much the assigned panel pushed the candidate toward
 #'   the outcome they actually received: `delta` for a pass, `-delta` for a
@@ -44,21 +57,24 @@
 #' summary(cf)
 #' # Known truth: the same analysis with the true parameters
 #' summary(df_counterfactual(sim, df_cut(12, "raw_total")))
+#'
+#' # One examiner per case, continuous 0-100 scores
+#' oral <- df_simulate(n_persons = 150, n_items = 6, n_raters = 18,
+#'                     design = "per_item", raters_per_item = 6,
+#'                     scale = "continuous", seed = 2)
+#' summary(df_counterfactual(oral, df_cut(70, "raw_mean"), seed = 1))
 #' @export
 df_counterfactual <- function(object, cut, theta = c("auto", "posterior", "point"),
-                              max_panels = 2000, flag_delta = 0.2,
-                              grid = seq(-6, 6, by = 0.1),
+                              max_panels = 2000, flag_delta = 0.2, grid = NULL,
                               prior_mean = NULL, prior_sd = NULL, seed = NULL) {
   theta <- match.arg(theta)
   if (theta == "auto") theta <- if (inherits(object, "df_sim")) "point" else "posterior"
   par <- object$par; d <- object$data
   cut <- resolve_cut(cut, par)
-  items <- names(par$delta); pool <- names(par$lambda)
   info <- person_panels(d)
   persons <- info$person
-  sizes <- unique(lengths(strsplit(info$panel, "|", fixed = TRUE)))
-  if (length(sizes) != 1) stop("MVP assumes all candidates have the same panel size.")
-  r <- sizes
+  design <- data_design(d)
+  cells_obs <- person_cells(d, persons)
 
   # Pass curves are evaluated at candidates' thetas (point) or on a grid
   # (posterior) and then mapped to candidates. Curves are kept so that
@@ -66,57 +82,82 @@ df_counterfactual <- function(object, cut, theta = c("auto", "posterior", "point
   W <- NULL
   if (theta == "point") {
     pts <- par$theta[persons]
-    to_person <- function(C) C
   } else {
     prior <- par$theta_prior
     if (is.null(prior)) prior <- c(mean = mean(par$theta), sd = stats::sd(par$theta))
     if (is.null(prior_mean)) prior_mean <- prior[["mean"]]
     if (is.null(prior_sd)) prior_sd <- prior[["sd"]]
+    if (is.null(grid)) grid <- if (is_continuous(par))
+      seq(prior_mean - 6 * prior_sd, prior_mean + 6 * prior_sd, length.out = 241)
+      else seq(-6, 6, by = 0.1)
     W <- theta_posterior(d, par, persons, grid, prior_mean, prior_sd)
     pts <- grid
-    to_person <- function(C) W %*% C
   }
-  raw_curve <- function(raters, p = par) {
-    cells <- panel_cells(items, raters)
+  person_vals <- function(C, idx) {
+    C <- as.matrix(C)
+    if (is.null(W)) C[idx, , drop = FALSE] else W[idx, , drop = FALSE] %*% C
+  }
+  curve <- function(cells, p = par)
     pass_prob(pts, cells, p, raw_cut_for_panel(cut, cells, p))
-  }
-  split_key <- function(key) strsplit(key, "|", fixed = TRUE)[[1]]
-
-  # Random panel: enumerate the pool when feasible, else sample.
-  if (choose(length(pool), r) <= max_panels) {
-    panels <- utils::combn(pool, r, simplify = FALSE)
-  } else {
-    if (!is.null(seed)) set.seed(seed)
-    panels <- replicate(max_panels, sample(pool, r), simplify = FALSE)
-  }
-  keys <- vapply(panels, function(p) paste(sort(p), collapse = "|"), "")
-  C <- matrix(vapply(panels, raw_curve, numeric(length(pts))),
-              nrow = length(pts), dimnames = list(NULL, keys))
-  M <- to_person(C)
-
-  # Observed panels: reuse enumerated curves when available.
-  obs_keys <- unique(info$panel)
-  C_obs <- vapply(obs_keys, function(k)
-    if (k %in% keys) C[, k] else raw_curve(split_key(k)), numeric(length(pts)))
-  C_obs <- matrix(C_obs, nrow = length(pts), dimnames = list(NULL, obs_keys))
-  obs_index <- match(info$panel, obs_keys)
-  p_obs <- to_person(C_obs)[cbind(seq_along(persons), obs_index)]
-
-  # Average panel: r raters of severity 0.
   par_avg <- par
   par_avg$lambda <- c(par$lambda, .avg = 0)
-  c_avg <- raw_curve(rep(".avg", r), par_avg)
-  p_avg <- drop(to_person(matrix(c_avg)))
+  avg_cells <- function(items) data.frame(item = items, rater = ".avg", stringsAsFactors = FALSE)
 
-  # The intended standard on the logit scale: where an average panel's
-  # expected raw total meets the raw cut, or the measure-scale cut directly.
-  theta_standard <- if (cut$decision_rule == "raw_total") {
-    avg_cells <- panel_cells(items, rep(".avg", r))
-    if (cut$value <= 0 || cut$value >= nrow(avg_cells) * length(par$tau))
-      stop("raw_total cut must lie strictly inside the score range.")
-    stats::uniroot(function(t) expected_total(t, avg_cells, par_avg) - cut$value,
-                   c(-15, 15), tol = 1e-10)$root
-  } else cut$theta
+  # Observed assignments (one curve per distinct panel key).
+  obs_keys <- unique(info$panel)
+  C_obs <- vapply(obs_keys, function(k) curve(cells_obs[[match(k, info$panel)]]),
+                  numeric(length(pts)))
+  C_obs <- matrix(C_obs, nrow = length(pts), dimnames = list(NULL, obs_keys))
+  obs_index <- match(info$panel, obs_keys)
+  p_obs <- vapply(seq_along(persons), function(n)
+    drop(person_vals(C_obs[, obs_index[n]], n)), numeric(1))
+
+  if (!is.null(seed)) set.seed(seed)
+  groups <- list(); enumerated <- TRUE; n_panels <- NA_integer_
+  p_avg <- p_rand <- p_min <- p_max <- numeric(length(persons))
+
+  if (design == "crossed") {
+    items <- names(par$delta)
+    pool <- names(par$lambda)
+    r <- unique(lengths(strsplit(info$panel, "|", fixed = TRUE)))
+    if (length(r) != 1) stop("Crossed designs need the same panel size for all candidates.")
+    if (choose(length(pool), r) <= max_panels) {
+      panels <- utils::combn(pool, r, simplify = FALSE)
+    } else {
+      panels <- replicate(max_panels, sample(pool, r), simplify = FALSE)
+      enumerated <- FALSE
+    }
+    keys <- vapply(panels, function(p) paste(sort(p), collapse = "|"), "")
+    C <- matrix(vapply(panels, function(p) curve(panel_cells(items, p)), numeric(length(pts))),
+                nrow = length(pts), dimnames = list(NULL, keys))
+    a_cells <- panel_cells(items, rep(".avg", r))
+    groups[[1]] <- list(members = seq_along(persons), C = C,
+                        c_avg = curve(a_cells, par_avg),
+                        theta_standard = theta_standard_for(cut, a_cells, par_avg))
+    n_panels <- length(panels)
+  } else {
+    eligible <- lapply(split(d$rater, d$item), unique)
+    for (s in unique(info$itemset)) {
+      members <- which(info$itemset == s)
+      items <- strsplit(s, "|", fixed = TRUE)[[1]]
+      C <- vapply(seq_len(max_panels), function(b)
+        curve(draw_assignment(items, eligible)), numeric(length(pts)))
+      C <- matrix(C, nrow = length(pts))
+      a_cells <- avg_cells(items)
+      groups[[length(groups) + 1]] <- list(members = members, C = C,
+                                           c_avg = curve(a_cells, par_avg),
+                                           theta_standard = theta_standard_for(cut, a_cells, par_avg))
+    }
+    enumerated <- FALSE; n_panels <- max_panels
+  }
+
+  for (g in groups) {
+    M <- person_vals(g$C, g$members)
+    p_rand[g$members] <- rowMeans(M)
+    p_min[g$members] <- apply(M, 1, min)
+    p_max[g$members] <- apply(M, 1, max)
+    p_avg[g$members] <- drop(person_vals(g$c_avg, g$members))
+  }
 
   cls <- df_classify(object, cut)
   out <- data.frame(
@@ -124,9 +165,9 @@ df_counterfactual <- function(object, cut, theta = c("auto", "posterior", "point
     pass_observed = cls$pass,
     p_observed = p_obs,
     p_average = p_avg,
-    p_random = rowMeans(M),
-    p_min = apply(M, 1, min),
-    p_max = apply(M, 1, max),
+    p_random = p_rand,
+    p_min = p_min,
+    p_max = p_max,
     stringsAsFactors = FALSE
   )
   out$pass <- NULL
@@ -136,12 +177,27 @@ df_counterfactual <- function(object, cut, theta = c("auto", "posterior", "point
   out$direction <- ifelse(!out$rater_dependent, NA_character_,
                           ifelse(out$pass_observed, "lenient_panel_pass", "harsh_panel_fail"))
   structure(out, class = c("df_counterfactual", "data.frame"),
-            cut = cut, theta_mode = theta, n_panels = length(panels),
-            enumerated = length(panels) == choose(length(pool), r),
-            internals = list(pts = pts, W = W, C = C, C_obs = C_obs,
-                             obs_index = obs_index, c_avg = c_avg,
-                             theta_standard = theta_standard,
+            cut = cut, theta_mode = theta, design = design, n_panels = n_panels,
+            enumerated = enumerated,
+            internals = list(pts = pts, W = W, C_obs = C_obs, obs_index = obs_index,
+                             groups = groups,
                              known_truth = inherits(object, "df_sim") && theta == "point"))
+}
+
+# One random assignment of examiners to items: for each item, an examiner who
+# scored that item, avoiding examiners already used for this candidate when
+# an alternative exists.
+draw_assignment <- function(items, eligible) {
+  used <- character(0)
+  rater <- character(length(items))
+  for (k in sample(seq_along(items))) {
+    pool <- eligible[[items[k]]]
+    fresh <- setdiff(pool, used)
+    cand <- if (length(fresh)) fresh else pool
+    rater[k] <- if (length(cand) == 1) cand else sample(cand, 1)
+    used <- c(used, rater[k])
+  }
+  data.frame(item = items, rater = rater, stringsAsFactors = FALSE)
 }
 
 #' @export
@@ -169,11 +225,14 @@ print.df_counterfactual <- function(x, n = 10, ...) {
     print(as.data.frame(unclass(x)), ...)
     return(invisible(x))
   }
+  what <- if (identical(attr(x, "design"), "assignment")) "assignments" else "panels"
   cat("<df_counterfactual> rule =", cut$decision_rule, "| cut =", cut$value,
       "| theta =", attr(x, "theta_mode"), "|", attr(x, "n_panels"),
-      if (isTRUE(attr(x, "enumerated"))) "panels (all)" else "panels (sampled)", "\n")
+      if (isTRUE(attr(x, "enumerated"))) paste(what, "(all)") else paste(what, "(sampled)"), "\n")
   cat(sum(x$rater_dependent), "of", nrow(x), "candidates flagged as rater-dependent\n\n")
-  top <- x[order(-x$advantage), ][seq_len(min(n, nrow(x))), ]
-  print(format(as.data.frame(top), digits = 3), row.names = FALSE)
+  top <- as.data.frame(x[order(-x$advantage), ][seq_len(min(n, nrow(x))), ])
+  long <- nchar(top$panel) > 30
+  top$panel[long] <- paste0(substr(top$panel[long], 1, 27), "...")
+  print(format(top, digits = 3), row.names = FALSE)
   invisible(x)
 }

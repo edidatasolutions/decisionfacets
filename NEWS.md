@@ -1,3 +1,25 @@
+# decisionfacets (development version)
+
+* Designs with one examiner per case (or any partially overlapping rating
+  design) are now supported. `df_counterfactual()` compares each candidate's
+  observed examiners with random reassignments that draw, for each case, an
+  examiner qualified for that case, without repeating an examiner for the same
+  candidate. `df_simulate()` gains `design = "per_item"` and
+  `raters_per_item`.
+* Continuous scores (for example 0-100) are supported through a linear
+  many-facet model, `score = ability - case difficulty - examiner severity +
+  error`. `df_data()` gains `scale = c("auto", "ordinal", "continuous")`;
+  `df_fit()` uses the new `"linear"` engine for continuous scores;
+  `df_simulate()` gains `scale = "continuous"`.
+* New decision rule `df_cut(value, "raw_mean")`: pass if the mean observed
+  rating reaches `value` (e.g. 70), convenient when candidates have different
+  numbers of ratings.
+* `df_fit()` stops with a clear message when the rating network is
+  disconnected, because rater severities would then not be comparable.
+* New synthetic data set `oral_exam`: 300 candidates, 12 cases, one examiner
+  per case, 0-100 scores.
+* Results for the existing crossed designs with ordinal scores are unchanged.
+
 # decisionfacets 0.1.0
 
 * Initial release.

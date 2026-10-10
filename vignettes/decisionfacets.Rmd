@@ -88,3 +88,56 @@ truth <- df_counterfactual(sim, raw)
 cor(truth$advantage, cf_raw$advantage)
 table(truth = truth$rater_dependent, estimated = cf_raw$rater_dependent)
 ```
+
+## Oral examinations: one examiner per case, scores 0-100
+
+Many oral certification exams do not use panels. Each candidate works
+through a series of cases, and each case is scored by a different examiner on
+a 0-100 scale. decisionfacets handles this design and these scores directly.
+
+`oral_exam` is a synthetic example: 300 candidates each take 12 cases, and
+each case is scored by one of 8 examiners qualified for it (48 examiners in
+all), never the same examiner twice for one candidate.
+
+```{r}
+head(oral_exam)
+d <- df_data(oral_exam, person = "candidate", item = "case",
+             rater = "examiner", scale = "continuous")
+```
+
+Continuous scores are fitted with a linear many-facet model,
+`score = ability - case difficulty - examiner severity + error`. Measures,
+difficulties and severities are all in score points, so a severity of 3 means
+that examiner scores about 3 points lower than an average examiner would.
+
+```{r}
+ofit <- df_fit(d)
+round(ofit$par$sigma, 1)                # residual SD (score points)
+head(df_rater_effects(ofit))
+range(round(ofit$par$lambda, 1))        # most lenient and harshest examiners
+```
+
+The natural standard is a mean score, for example 70. The counterfactual
+reassigns examiners case by case: each draw gives every case an examiner
+qualified for it.
+
+```{r}
+cut70 <- df_cut(70, "raw_mean")
+cf_oral <- df_counterfactual(ofit, cut70, max_panels = 500, seed = 1)
+summary(cf_oral)
+df_attribute(cf_oral)
+```
+
+With twelve different examiners per candidate, severity largely averages
+out, so examiner assignment usually accounts for a smaller share of wrong
+decisions than with two-rater panels. Scoring with severity-adjusted
+measures removes it altogether:
+
+```{r}
+summary(df_counterfactual(ofit, df_cut(70, "measure"), max_panels = 500, seed = 1))
+```
+
+`df_fit()` also checks that the rating network is connected. If some
+examiners never share candidates or cases with the rest, their severities
+cannot be compared, and `df_fit()` stops with an explanation instead of
+returning misleading estimates.

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">decisionfacets</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,7 +34,17 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.1.0" id="decisionfacets-010">decisionfacets 0.1.0<a class="anchor" aria-label="anchor" href="#decisionfacets-010"></a></h2>
+<h2 class="pkg-version" data-toc-text="development version" id="decisionfacets-development-version">decisionfacets (development version)<a class="anchor" aria-label="anchor" href="#decisionfacets-development-version"></a></h2>
+<ul><li>Designs with one examiner per case (or any partially overlapping rating design) are now supported. <code><a href="../reference/df_counterfactual.html">df_counterfactual()</a></code> compares each candidate’s observed examiners with random reassignments that draw, for each case, an examiner qualified for that case, without repeating an examiner for the same candidate. <code><a href="../reference/df_simulate.html">df_simulate()</a></code> gains <code>design = "per_item"</code> and <code>raters_per_item</code>.</li>
+<li>Continuous scores (for example 0-100) are supported through a linear many-facet model, <code>score = ability - case difficulty - examiner severity + error</code>. <code><a href="../reference/df_data.html">df_data()</a></code> gains <code>scale = c("auto", "ordinal", "continuous")</code>; <code><a href="../reference/df_fit.html">df_fit()</a></code> uses the new <code>"linear"</code> engine for continuous scores; <code><a href="../reference/df_simulate.html">df_simulate()</a></code> gains <code>scale = "continuous"</code>.</li>
+<li>New decision rule <code>df_cut(value, "raw_mean")</code>: pass if the mean observed rating reaches <code>value</code> (e.g. 70), convenient when candidates have different numbers of ratings.</li>
+<li>
+<code><a href="../reference/df_fit.html">df_fit()</a></code> stops with a clear message when the rating network is disconnected, because rater severities would then not be comparable.</li>
+<li>New synthetic data set <code>oral_exam</code>: 300 candidates, 12 cases, one examiner per case, 0-100 scores.</li>
+<li>Results for the existing crossed designs with ordinal scores are unchanged.</li>
+</ul></div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.0" id="decisionfacets-010">decisionfacets 0.1.0<a class="anchor" aria-label="anchor" href="#decisionfacets-010"></a></h2><p class="text-muted">CRAN release: 2026-10-07</p>
 <ul><li>Initial release.</li>
 <li>Many-facet Rasch rating scale model fitting via ‘TAM’ (marginal ML) or built-in JMLE (<code><a href="../reference/df_fit.html">df_fit()</a></code>).</li>
 <li>Explicit decision rules: raw total, fair average, measure (<code><a href="../reference/df_cut.html">df_cut()</a></code>, <code><a href="../reference/df_classify.html">df_classify()</a></code>).</li>
@@ -42,7 +52,8 @@
 <li>Attribution of expected misclassification to measurement error and rater assignment (<code><a href="../reference/df_attribute.html">df_attribute()</a></code>).</li>
 <li>Known-truth simulation (<code><a href="../reference/df_simulate.html">df_simulate()</a></code>).</li>
 </ul></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

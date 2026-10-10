@@ -1,11 +1,8 @@
 # Counterfactual pass probabilities: would this candidate have passed with different raters?
 
 For each candidate, computes the probability of passing a re-rating
-under (a) the observed panel, (b) a panel of average-severity raters,
-and (c) a panel drawn at random from the rater pool, all under the same
-decision rule. Probabilities are exact (recursive convolution of the
-model's category probabilities); the only approximation is sampling
-panels when the pool is too large to enumerate.
+under (a) the observed raters, (b) raters of average severity, and (c)
+raters drawn at random from the pool, all under the same decision rule.
 
 ## Usage
 
@@ -16,7 +13,7 @@ df_counterfactual(
   theta = c("auto", "posterior", "point"),
   max_panels = 2000,
   flag_delta = 0.2,
-  grid = seq(-6, 6, by = 0.1),
+  grid = NULL,
   prior_mean = NULL,
   prior_sd = NULL,
   seed = NULL
@@ -44,7 +41,7 @@ df_counterfactual(
 - max_panels:
 
   Enumerate all rater panels when there are at most this many; otherwise
-  sample this many panels.
+  sample this many panels or assignments.
 
 - flag_delta:
 
@@ -52,7 +49,9 @@ df_counterfactual(
 
 - grid:
 
-  Theta grid for the posterior.
+  Theta grid for the posterior. Defaults to \`seq(-6, 6, by = 0.1)\` for
+  ordinal scores and a grid spanning six prior SDs for continuous
+  scores.
 
 - prior_mean, prior_sd:
 
@@ -69,8 +68,9 @@ df_counterfactual(
 A \`df_counterfactual\` data frame, one row per candidate: \`person\`,
 \`panel\`, \`total\`, \`raw_cut\`, \`pass_observed\` (actual decision),
 \`p_observed\`, \`p_average\`, \`p_random\`, \`p_min\`, \`p_max\` (worst
-and best panel in the pool), \`delta\` (= p_observed - p_random),
-\`advantage\`, \`direction\` and \`rater_dependent\`.
+and best panel in the pool or among sampled assignments), \`delta\` (=
+p_observed - p_random), \`advantage\`, \`direction\` and
+\`rater_dependent\`.
 
 \`advantage\` is how much the assigned panel pushed the candidate toward
 the outcome they actually received: \`delta\` for a pass, \`-delta\` for
@@ -80,6 +80,27 @@ for a random one; decision reversals from measurement error alone cancel
 out. \`rater_dependent\` is \`advantage \>= flag_delta\`, and
 \`direction\` labels flagged cases \`"lenient_panel_pass"\` (board's
 false-pass exposure) or \`"harsh_panel_fail"\` (the appeal case).
+
+## Details
+
+Two scoring designs are supported:
+
+- crossed:
+
+  Every rater on a candidate's panel scores every item. The random panel
+  is a random set of raters from the pool, enumerated when feasible.
+
+- assignment:
+
+  Any other pattern, typically one examiner per case. The random
+  assignment draws, for each of the candidate's items, an examiner at
+  random from those who scored that item, without reusing an examiner
+  for the same candidate when an alternative exists. Assignments are
+  sampled.
+
+Probabilities are exact given an assignment (recursive convolution for
+ordinal scores, the normal distribution for continuous scores); the only
+approximation is sampling assignments when they cannot be enumerated.
 
 ## Examples
 
@@ -94,14 +115,14 @@ cf                 # most rater-dependent candidates first
 #>  person   panel total raw_cut pass_observed p_observed p_average p_random
 #>   P0124 R01|R02    13      12          TRUE     0.7451     0.218    0.281
 #>   P0116 R01|R02    15      12          TRUE     0.9042     0.452    0.464
-#>   P0156 R02|R06    13      12          TRUE     0.7389     0.292    0.341
 #>   P0069 R02|R06    13      12          TRUE     0.7389     0.292    0.341
+#>   P0156 R02|R06    13      12          TRUE     0.7389     0.292    0.341
 #>   P0119 R03|R05     9      12         FALSE     0.1838     0.600    0.574
 #>   P0173 R01|R02    16      12          TRUE     0.9489     0.586    0.565
 #>   P0075 R02|R06    12      12          TRUE     0.6241     0.191    0.257
 #>   P0057 R02|R05    13      12          TRUE     0.7339     0.363    0.396
 #>   P0170 R03|R04     7      12         FALSE     0.0583     0.355    0.388
-#>   P0005 R03|R06    10      12         FALSE     0.2889     0.650    0.613
+#>   P0073 R03|R06    10      12         FALSE     0.2889     0.650    0.613
 #>   p_min p_max  delta advantage rater_dependent          direction
 #>  0.0237 0.745  0.464     0.464            TRUE lenient_panel_pass
 #>  0.0931 0.904  0.441     0.441            TRUE lenient_panel_pass
@@ -128,4 +149,16 @@ summary(df_counterfactual(sim, df_cut(12, "raw_total")))
 #> 1      0.1294924                40                   21                 19
 #>   n_panel_sensitive
 #> 1               118
+
+# One examiner per case, continuous 0-100 scores
+oral <- df_simulate(n_persons = 150, n_items = 6, n_raters = 18,
+                    design = "per_item", raters_per_item = 6,
+                    scale = "continuous", seed = 2)
+summary(df_counterfactual(oral, df_cut(70, "raw_mean"), seed = 1))
+#>   decision_rule cut   n pass_rate_observed expected_pass_rate_random_panel
+#> 1      raw_mean  70 150          0.5533333                       0.5121212
+#>   mean_abs_delta n_rater_dependent n_lenient_panel_pass n_harsh_panel_fail
+#> 1     0.04193911                 4                    1                  3
+#>   n_panel_sensitive
+#> 1                39
 ```

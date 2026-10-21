@@ -10,3 +10,5 @@ dev/*.rds
 
 paper/manuscript.md
 paper/*.docx
+paper/apm/
+paper/figures/

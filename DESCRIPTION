@@ -1,6 +1,6 @@
 Package: decisionfacets
 Title: Decision Accuracy and Consistency for Rater-Mediated Exams
-Version: 0.1.0.9000
+Version: 0.2.0
 Authors@R: person("Daniel", "Edi", email = "danieledi2026@gmail.com", role = c("aut", "cre", "cph"),
     comment = c(ORCID = "0000-0001-5475-819X"))
 Description: Answers "would this candidate have passed with a different set
@@ -13,8 +13,11 @@ Description: Answers "would this candidate have passed with a different set
     splits expected misclassification into measurement error and rater
     assignment, extending item response theory classification accuracy
     (Lee, 2010, <doi:10.1111/j.1745-3984.2009.00096.x>) to rater effects.
-    Models can be fitted with 'TAM' or a built-in joint maximum likelihood
-    estimator.
+    Supports panels in which every rater scores every task and designs in
+    which each case is scored by a different examiner, with rating
+    categories or continuous scores such as 0-100 (through a linear
+    many-facet model). Models can be fitted with 'TAM' or built-in
+    estimators.
 License: MIT + file LICENSE
 URL: https://github.com/edidatasolutions/decisionfacets, https://edidatasolutions.github.io/decisionfacets/
 BugReports: https://github.com/edidatasolutions/decisionfacets/issues

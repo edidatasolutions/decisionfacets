@@ -1,4 +1,4 @@
-# decisionfacets (development version)
+# decisionfacets 0.2.0
 
 * Designs with one examiner per case (or any partially overlapping rating
   design) are now supported. `df_counterfactual()` compares each candidate's

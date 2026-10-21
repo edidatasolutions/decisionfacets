@@ -115,14 +115,14 @@ cf                 # most rater-dependent candidates first
 #>  person   panel total raw_cut pass_observed p_observed p_average p_random
 #>   P0124 R01|R02    13      12          TRUE     0.7451     0.218    0.281
 #>   P0116 R01|R02    15      12          TRUE     0.9042     0.452    0.464
-#>   P0069 R02|R06    13      12          TRUE     0.7389     0.292    0.341
 #>   P0156 R02|R06    13      12          TRUE     0.7389     0.292    0.341
+#>   P0069 R02|R06    13      12          TRUE     0.7389     0.292    0.341
 #>   P0119 R03|R05     9      12         FALSE     0.1838     0.600    0.574
 #>   P0173 R01|R02    16      12          TRUE     0.9489     0.586    0.565
 #>   P0075 R02|R06    12      12          TRUE     0.6241     0.191    0.257
 #>   P0057 R02|R05    13      12          TRUE     0.7339     0.363    0.396
 #>   P0170 R03|R04     7      12         FALSE     0.0583     0.355    0.388
-#>   P0073 R03|R06    10      12         FALSE     0.2889     0.650    0.613
+#>   P0005 R03|R06    10      12         FALSE     0.2889     0.650    0.613
 #>   p_min p_max  delta advantage rater_dependent          direction
 #>  0.0237 0.745  0.464     0.464            TRUE lenient_panel_pass
 #>  0.0931 0.904  0.441     0.441            TRUE lenient_panel_pass

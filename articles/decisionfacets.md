@@ -251,7 +251,7 @@ summary(df_counterfactual(ofit, df_cut(70, "measure"), max_panels = 500, seed = 
 #>   decision_rule cut   n pass_rate_observed expected_pass_rate_random_panel
 #> 1       measure  70 300               0.64                       0.6324932
 #>   mean_abs_delta n_rater_dependent n_lenient_panel_pass n_harsh_panel_fail
-#> 1   1.491153e-16                 0                    0                  0
+#> 1   1.444707e-16                 0                    0                  0
 #>   n_panel_sensitive
 #> 1                 0
 ```

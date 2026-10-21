@@ -7,8 +7,8 @@ status](https://www.r-pkg.org/badges/version/decisionfacets)](https://CRAN.R-pro
 
 Decision accuracy and consistency for rater-mediated exams (oral exams,
 OSCEs, essay and constructed-response scoring), built on the many-facet
-Rasch rating scale model for rating categories and, in the development
-version, a linear many-facet model for continuous scores such as 0-100.
+Rasch rating scale model for rating categories and, since version 0.2.0,
+a linear many-facet model for continuous scores such as 0-100.
 
 ``` r
 
@@ -24,10 +24,11 @@ cf                                           # most rater-dependent candidates f
 df_attribute(cf)                             # measurement error vs rater assignment
 ```
 
-### Oral examinations: one examiner per case, scores 0-100 (development version)
+### Oral examinations: one examiner per case, scores 0-100
 
 Many oral certification exams score each case with a different examiner
-on a 0-100 scale. The development version handles that design directly:
+on a 0-100 scale. Since version 0.2.0, decisionfacets handles that
+design directly:
 
 ``` r
 
@@ -82,7 +83,7 @@ scores.
 | design | example | counterfactual panel |
 |----|----|----|
 | crossed | 2 raters score all 4 tasks for each candidate | a random set of raters from the pool (enumerated when feasible) |
-| one examiner per case *(development version)* | each of 12 oral cases is scored by a different examiner | for each case, a random examiner qualified for that case |
+| one examiner per case *(since 0.2.0)* | each of 12 oral cases is scored by a different examiner | for each case, a random examiner qualified for that case |
 
 [`df_fit()`](https://edidatasolutions.github.io/decisionfacets/reference/df_fit.md)
 stops if the rating network is disconnected, because examiner severities
@@ -120,7 +121,7 @@ candidate, cut = mean rating of 2. Means over 100 replications:
 - Under measure-based and fair-average rules, no candidate is flagged as
   rater-dependent.
 
-### One examiner per case, scores 0-100 (development version)
+### One examiner per case, scores 0-100
 
 400 candidates; 6 or 12 cases each, scored by one examiner per case;
 examiner severity SD 2, 4 or 6 score points; 4 or 10 qualified examiners
@@ -172,5 +173,5 @@ JMLE stretches the logit scale (~15% in validation); prefer TAM.
 
 Questions and bug reports:
 <https://github.com/edidatasolutions/decisionfacets/issues>. See
-[CONTRIBUTING.md](https://edidatasolutions.github.io/decisionfacets/CONTRIBUTING.md)
+[CONTRIBUTING.md](https://github.com/edidatasolutions/decisionfacets/blob/main/.github/CONTRIBUTING.md)
 for how to report problems, get help, or contribute code.
